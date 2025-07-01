@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full min-h-screen">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG AI Classifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              poppins: ['Poppins', 'Inter', 'sans-serif'],
+              inter: ['Inter', 'sans-serif']
+            },
+            colors: {
+              navy: '#1a2238',
+              neon: '#9f53ff',
+              softwhite: '#f8fafc',
+              pulse: '#ff296d',
+            },
+            boxShadow: {
+              card: '0 4px 24px 0 rgba(80, 80, 180, 0.10)',
+            },
+            borderRadius: {
+              card: '1.5rem',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body, html { font-family: 'Poppins', 'Inter', sans-serif; }
+      .pulse-anim {
+        animation: pulse-heart 1.2s infinite;
+      }
+      @keyframes pulse-heart {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.18); }
+        100% { transform: scale(1); }
+      }
+    </style>
+</head>
+<body class="bg-navy text-softwhite min-h-screen h-full flex flex-col justify-between transition-colors duration-300 relative">
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 w-full z-50 bg-navy/90 backdrop-blur shadow-lg">
+      <div class="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-3">
+          <span class="pulse-anim"><i class="fa-solid fa-heart-pulse text-pulse text-2xl"></i></span>
+          <span class="font-bold text-xl tracking-tight text-neon">ECG AI Classifier</span>
+        </div>
+        <div class="hidden md:flex gap-6 font-semibold text-softwhite">
+          <a href="#" class="hover:text-neon transition">Home</a>
+          <a href="#about" class="hover:text-neon transition">About</a>
+          <button id="nav-logout" class="hover:text-pulse transition">Logout</button>
+        </div>
+        <button id="nav-menu-btn" class="md:hidden text-2xl text-softwhite focus:outline-none"><i class="fa fa-bars"></i></button>
+      </div>
+      <!-- Mobile Menu -->
+      <div id="mobile-menu" class="hidden md:hidden flex-col gap-4 px-4 pb-4 bg-navy/95">
+        <a href="#" class="block py-2 hover:text-neon transition">Home</a>
+        <a href="#about" class="block py-2 hover:text-neon transition">About</a>
+        <button id="mobile-logout" class="block py-2 hover:text-pulse transition">Logout</button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col items-center justify-center pt-24 pb-24 w-full">
+      <!-- Auth Modal -->
+      <div id="auth-modal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70" style="display:none;">
+        <div class="relative rounded-card shadow-card p-8 w-full max-w-md flex flex-col items-center" style="background: linear-gradient(120deg, #1a2238 0%, #2d2e6e 100%);">
+          <div class="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+            <span class="pulse-anim"><i class="fa-solid fa-heart-pulse text-pulse text-3xl"></i></span>
+          </div>
+          <div class="relative z-20 w-full flex flex-col items-center">
+            <h2 class="text-2xl font-bold mb-2 text-neon">Welcome</h2>
+            <p class="mb-4 text-center text-gray-300">AI-powered arrhythmia detection in seconds. Just upload and get results.</p>
+            <div class="flex w-full mb-4">
+              <button id="show-login" class="flex-1 py-2 font-bold text-neon border-b-2 border-neon">Login</button>
+              <button id="show-register" class="flex-1 py-2 font-bold text-gray-400 border-b-2 border-transparent">Register</button>
+            </div>
+            <form id="login-form" class="w-full">
+              <div class="mb-3">
+                <label class="block mb-1">Username</label>
+                <input type="text" id="login-username" class="w-full px-3 py-2 rounded bg-navy text-softwhite border border-neon focus:outline-none focus:ring-2 focus:ring-neon" required>
+              </div>
+              <div class="mb-3">
+                <label class="block mb-1">Password</label>
+                <input type="password" id="login-password" class="w-full px-3 py-2 rounded bg-navy text-softwhite border border-neon focus:outline-none focus:ring-2 focus:ring-neon" required>
+              </div>
+              <button type="submit" class="w-full bg-neon hover:bg-pulse text-navy font-semibold py-2 px-4 rounded mt-2 transition">Login</button>
+            </form>
+            <form id="register-form" class="w-full hidden">
+              <div class="mb-3">
+                <label class="block mb-1">Username</label>
+                <input type="text" id="register-username" class="w-full px-3 py-2 rounded bg-navy text-softwhite border border-neon focus:outline-none focus:ring-2 focus:ring-neon" required>
+              </div>
+              <div class="mb-3">
+                <label class="block mb-1">Password</label>
+                <input type="password" id="register-password" class="w-full px-3 py-2 rounded bg-navy text-softwhite border border-neon focus:outline-none focus:ring-2 focus:ring-neon" required>
+              </div>
+              <button type="submit" class="w-full bg-neon hover:bg-pulse text-navy font-semibold py-2 px-4 rounded mt-2 transition">Register</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload & Result Card (Home) -->
+      <div id="main-app" class="w-full max-w-3xl mx-auto flex flex-col items-center gap-8">
+        <!-- Upload Card -->
+        <div id="upload-section" class="w-full bg-navy rounded-card shadow-card p-8 flex flex-col items-center mb-4">
+          <h1 class="text-3xl md:text-4xl font-bold flex items-center gap-2 mb-2 text-neon">
+            <i class="fa-solid fa-heart-pulse text-pulse"></i>
+            ECG Arrhythmia Classifier
+          </h1>
+          <p class="text-gray-400 mb-4 text-center">Upload ECG feature data to classify arrhythmia types using deep learning</p>
+          <!-- Drag and Drop Upload -->
+          <div id="drop-zone" class="border-2 border-dashed border-neon rounded-lg p-8 text-center transition-colors duration-200 bg-navy cursor-pointer hover:bg-neon/10 mb-4 w-full max-w-lg">
+            <div class="flex flex-col items-center">
+              <span class="pulse-anim"><i class="fa-solid fa-cloud-arrow-up text-4xl text-neon mb-2"></i></span>
+              <p class="mb-1">Drag and drop your CSV file here</p>
+              <p class="text-gray-400">or <span class="underline text-neon cursor-pointer" id="browse-link">browse</span></p>
+              <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+              <div id="file-info" class="mt-2 text-green-400 font-semibold hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prediction Result Card (only top class and confidence) -->
+        <div id="result-card" class="w-full max-w-lg mx-auto bg-gradient-to-br from-navy to-neon/10 rounded-card shadow-card p-8 flex flex-col items-center gap-4 hidden">
+          <div class="flex flex-col items-center gap-2">
+            <span class="text-lg text-gray-400">Predicted Class</span>
+            <span id="predicted-class" class="text-3xl font-bold text-neon"></span>
+            <span id="predicted-class-name" class="text-xl font-semibold text-softwhite"></span>
+          </div>
+          <div class="flex flex-col items-center gap-1 mt-2">
+            <span class="text-lg text-gray-400">Confidence</span>
+            <span id="predicted-confidence" class="text-2xl font-bold text-pulse"></span>
+          </div>
+        </div>
+        <!-- Confidence Bar Graph -->
+        <div id="confidence-bar-graph-container" class="w-full max-w-lg mx-auto mt-4 hidden">
+          <div class="bg-navy rounded-card shadow-card p-4">
+            <h3 class="text-lg font-semibold mb-2 text-neon">Confidence</h3>
+            <div class="flex items-center gap-4">
+              <div class="flex-1 bg-gray-700 rounded-full h-5 overflow-hidden">
+                <div id="confidence-bar" class="h-5 rounded-full transition-all duration-500" style="width: 0%; background: #9f53ff;"></div>
+              </div>
+              <span id="confidence-bar-label" class="text-lg font-bold text-softwhite">0%</span>
+            </div>
+            <div id="confidence-warning" class="mt-3 hidden bg-blue-100 text-blue-900 rounded p-2 text-center text-sm flex items-center gap-2">
+              <i class="fa fa-info-circle"></i>
+              <span>Low confidence prediction – consider additional testing</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Button (shown with result) -->
+        <div id="download-row" class="flex justify-center mt-2 hidden">
+          <button id="download-btn" class="bg-neon hover:bg-pulse text-navy font-semibold py-2 px-6 rounded shadow transition w-auto min-w-[180px] mx-2 flex-shrink-0 flex items-center gap-2 relative group" title="Download your prediction as CSV for offline use or sharing with your doctor.">
+            <i class="fa-solid fa-download"></i>
+            <span>Download Result as CSV</span>
+            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 bg-navy text-softwhite text-xs rounded px-2 py-1 shadow-card transition">Download your prediction as CSV for offline use or sharing with your doctor.</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- About Section -->
+      <div id="about-section" class="w-full max-w-2xl mx-auto flex flex-col items-center gap-8">
+        <div class="w-full bg-navy rounded-card shadow-card p-8 flex flex-col items-center mb-4">
+          <h2 class="text-2xl font-bold text-neon mb-4 flex items-center gap-2"><i class="fa-solid fa-circle-info animate-pulse"></i> About ECG Arrhythmia Classifier</h2>
+          <p class="text-softwhite text-lg mb-2 text-center">ECG Arrhythmia Classifier is an AI-powered tool that helps detect and classify potential cardiac arrhythmias using ECG signal features.</p>
+          <p class="text-gray-400 mb-2 text-center">This tool uses a 1D Convolutional Neural Network (CNN) trained on the UCI Arrhythmia Dataset. It performs preprocessing, feature selection using Random Forest, class balancing using SMOTE, and makes accurate arrhythmia predictions based on 279 ECG features.</p>
+          <p class="text-gray-400 mb-2 text-center">Whether you're a researcher, clinician, or curious student, this tool simplifies AI-driven diagnosis in a user-friendly way.</p>
+          <p class="text-pulse font-semibold text-center">Note: This app is for educational/research purposes only and not for clinical diagnosis.</p>
+        </div>
+      </div>
+      <!-- Loading Spinner/Heartbeat Animation -->
+      <div id="spinner" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="flex flex-col items-center">
+          <span class="pulse-anim"><i class="fa-solid fa-heart-pulse text-pulse text-6xl mb-4"></i></span>
+          <span class="text-lg">Processing...</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="fixed bottom-0 left-0 w-full bg-navy/90 backdrop-blur shadow-lg z-40 flex flex-col md:flex-row items-center justify-between px-4 py-2 text-xs text-gray-400">
+      <div class="flex items-center gap-2">
+        <span class="pulse-anim"><i class="fa-solid fa-heart-pulse text-pulse"></i></span>
+        <span>Early arrhythmia detection</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span>Powered by TensorFlow & Flask</span>
+        <i class="fa-solid fa-wave-square text-neon"></i>
+      </div>
+    </footer>
+
+    <!-- Bottom Left Info (Mobile Only) -->
+    <div class="fixed bottom-20 left-2 flex flex-col items-center z-40 md:hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" class="w-8 h-8 text-pulse mb-1"><path fill="#F87171" d="M24 44s-1.74-1.61-4.55-4.13C12.36 34.13 4 27.36 4 18.5 4 11.6 9.6 6 16.5 6c3.54 0 6.91 1.61 9.5 4.09C28.59 7.61 31.96 6 35.5 6 42.4 6 48 11.6 48 18.5c0 8.86-8.36 15.63-15.45 21.37C25.74 42.39 24 44 24 44Z"/></svg>
+      <span class="text-xs text-gray-400 text-center max-w-[120px]">Download your predictions as a CSV file for further analysis or sharing with your doctor.</span>
+    </div>
+    <div class="fixed bottom-20 right-2 flex flex-col items-center z-40 md:hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-8 h-8 text-neon mb-1"><path fill="#6366F1" d="M8 32h10l6 16 12-32 6 16h10" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="32" cy="32" r="30" stroke="#6366F1" stroke-width="2" fill="none"/></svg>
+      <span class="text-xs text-gray-400 text-center max-w-[120px]">ECG/Arrhythmia AI powered by deep learning</span>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Navbar mobile menu toggle
+        const navMenuBtn = document.getElementById('nav-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        navMenuBtn.onclick = () => {
+          mobileMenu.classList.toggle('hidden');
+        };
+        // Navbar logout
+        document.getElementById('nav-logout').onclick = document.getElementById('mobile-logout').onclick = function() {
+          fetch('/logout', {method: 'POST'}).then(() => {
+            document.getElementById('main-app').style.display = 'none';
+            document.getElementById('auth-modal').style.display = '';
+          });
+        };
+        // Auth modal logic
+        const authModal = document.getElementById('auth-modal');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const showLoginBtn = document.getElementById('show-login');
+        const showRegisterBtn = document.getElementById('show-register');
+        const mainApp = document.getElementById('main-app');
+        showLoginBtn.onclick = function() {
+          showLoginBtn.classList.add('text-neon', 'border-neon');
+          showLoginBtn.classList.remove('text-gray-400', 'border-transparent');
+          showRegisterBtn.classList.remove('text-neon', 'border-neon');
+          showRegisterBtn.classList.add('text-gray-400', 'border-transparent');
+          loginForm.classList.remove('hidden');
+          registerForm.classList.add('hidden');
+        };
+        showRegisterBtn.onclick = function() {
+          showRegisterBtn.classList.add('text-neon', 'border-neon');
+          showRegisterBtn.classList.remove('text-gray-400', 'border-transparent');
+          showLoginBtn.classList.remove('text-neon', 'border-neon');
+          showLoginBtn.classList.add('text-gray-400', 'border-transparent');
+          loginForm.classList.add('hidden');
+          registerForm.classList.remove('hidden');
+        };
+        registerForm.onsubmit = function(e) {
+          e.preventDefault();
+          fetch('/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              username: document.getElementById('register-username').value,
+              password: document.getElementById('register-password').value
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              showError(data.error);
+            } else {
+              showSuccess('Registration successful! Please log in.');
+              showLoginBtn.click();
+            }
+          });
+        };
+        loginForm.onsubmit = function(e) {
+          e.preventDefault();
+          fetch('/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              username: document.getElementById('login-username').value,
+              password: document.getElementById('login-password').value
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              showError(data.error);
+            } else {
+              authModal.style.display = 'none';
+              mainApp.style.display = '';
+            }
+          });
+        };
+        // Alerts
+        function showError(msg) {
+          const alert = document.getElementById('error-alert');
+          document.getElementById('error-message').textContent = msg;
+          alert.classList.remove('hidden');
+          setTimeout(hideError, 5000);
+        }
+        function hideError() {
+          document.getElementById('error-alert').classList.add('hidden');
+        }
+        function showSuccess(msg) {
+          const alert = document.getElementById('success-alert');
+          document.getElementById('success-message').textContent = msg;
+          alert.classList.remove('hidden');
+          setTimeout(hideSuccess, 4000);
+        }
+        function hideSuccess() {
+          document.getElementById('success-alert').classList.add('hidden');
+        }
+        // Drag and Drop
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('csv-file-input');
+        const browseLink = document.getElementById('browse-link');
+        const fileInfo = document.getElementById('file-info');
+        let uploadedFile = null;
+        dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropZone.classList.add('bg-neon/20', 'border-pulse');
+        });
+        dropZone.addEventListener('dragleave', () => {
+          dropZone.classList.remove('bg-neon/20', 'border-pulse');
+        });
+        dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('bg-neon/20', 'border-pulse');
+          handleFiles(e.dataTransfer.files);
+        });
+        browseLink.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        function handleFiles(files) {
+          if (files.length === 0) return;
+          const file = files[0];
+          if (!file.type.match('text/csv')) {
+            showError('Please select a CSV file.');
+            return;
+          }
+          uploadedFile = file;
+          fileInfo.textContent = `Selected file: ${file.name}`;
+          fileInfo.classList.remove('hidden');
+          predict(file);
+        }
+        // Spinner
+        function showSpinner() {
+          document.getElementById('spinner').classList.remove('hidden');
+        }
+        function hideSpinner() {
+          document.getElementById('spinner').classList.add('hidden');
+        }
+        // Prediction Fetch
+        function predict(file) {
+          showSpinner();
+          // Hide download button if present
+          const downloadBtn = document.getElementById('download-btn');
+          if (downloadBtn) downloadBtn.classList.add('hidden');
+          const formData = new FormData();
+          formData.append('file', file);
+          fetch('/predict', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            hideSpinner();
+            if (data.error) {
+              showError(data.error);
+            } else {
+              displayResults(data.predictions);
+            }
+          })
+          .catch(error => {
+            hideSpinner();
+            showError('Failed to fetch prediction.');
+          });
+        }
+        // Display Results
+        function displayResults(predictions) {
+          console.log('displayResults called', predictions);
+          // Find top prediction
+          let top = predictions[0];
+          for (let i = 1; i < predictions.length; i++) {
+            if (predictions[i].confidence > top.confidence) top = predictions[i];
+          }
+          window.lastPrediction = top;
+          // Show result card
+          document.getElementById('predicted-class').textContent = top.class_number;
+          document.getElementById('predicted-class-name').textContent = top.class_name;
+          document.getElementById('predicted-confidence').textContent = (top.confidence * 100).toFixed(1) + '%';
+          document.getElementById('result-card').classList.remove('hidden');
+          document.getElementById('download-row').classList.remove('hidden');
+          const downloadBtn = document.getElementById('download-btn');
+          if (downloadBtn) downloadBtn.classList.remove('hidden');
+          // Show and update confidence bar
+          const barContainer = document.getElementById('confidence-bar-graph-container');
+          const bar = document.getElementById('confidence-bar');
+          const barLabel = document.getElementById('confidence-bar-label');
+          const warning = document.getElementById('confidence-warning');
+          barContainer.classList.remove('hidden');
+          const percent = (top.confidence * 100).toFixed(1);
+          bar.style.width = percent + '%';
+          barLabel.textContent = percent + '%';
+          if (top.confidence < 0.5) {
+            warning.classList.remove('hidden');
+          } else {
+            warning.classList.add('hidden');
+          }
+          // Add to recent predictions
+          addRecentPrediction(uploadedFile ? uploadedFile.name : 'Unknown', `${top.class_number} – ${top.class_name}`, (top.confidence * 100).toFixed(1) + '%');
+        }
+        // Download Result as CSV (top prediction only)
+        document.getElementById('download-btn').onclick = function() {
+          if (!window.lastPrediction) return;
+          const top = window.lastPrediction;
+          const csv = `Class Number,Class Name,Confidence\n${top.class_number},${top.class_name},${(top.confidence * 100).toFixed(1)}%\n`;
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'prediction.csv';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+        // On page load, show home
+        window.onload = function() {
+          console.log('Page loaded, showing Home');
+          authModal.style.display = '';
+          mainApp.style.display = 'none';
+          aboutSection.style.display = 'none';
+          showSection('home');
+        };
+        // Add section switching and smooth scroll logic
+        const navLinks = document.querySelectorAll('nav a, #nav-logout, #mobile-logout');
+        const aboutSection = document.getElementById('about-section');
+        const uploadSection = document.getElementById('upload-section');
+        const resultCard = document.getElementById('result-card');
+        const downloadRow = document.getElementById('download-row');
+
+        function showSection(section) {
+          // Hide all
+          mainApp.style.display = 'none';
+          aboutSection.style.display = 'none';
+          // Remove active highlight
+          document.querySelectorAll('nav a').forEach(a => a.classList.remove('text-neon', 'animate-pulse'));
+          // Show selected
+          if (section === 'home') {
+            console.log('Switching to Home');
+            mainApp.style.display = '';
+            document.querySelectorAll('a[href="#"]').forEach(a => a.classList.add('text-neon', 'animate-pulse'));
+            window.scrollTo({top: 0, behavior: 'smooth'});
+          } else if (section === 'about') {
+            console.log('Switching to About');
+            aboutSection.style.display = '';
+            document.querySelectorAll('a[href="#about"]').forEach(a => a.classList.add('text-neon', 'animate-pulse'));
+            window.scrollTo({top: aboutSection.offsetTop - 60, behavior: 'smooth'});
+          }
+        }
+
+        document.querySelectorAll('a[href="#"]').forEach(link => {
+          link.onclick = (e) => { e.preventDefault(); showSection('home'); };
+        });
+        document.querySelectorAll('a[href="#about"]').forEach(link => {
+          link.onclick = (e) => { e.preventDefault(); showSection('about'); };
+        });
+
+        // Store and show recent predictions
+        let recentPredictions = JSON.parse(localStorage.getItem('recentPredictions') || '[]');
+        function addRecentPrediction(filename, className, confidence) {
+          const now = new Date();
+          recentPredictions.unshift({ filename, className, confidence, timestamp: now.toLocaleString() });
+          if (recentPredictions.length > 10) recentPredictions.pop();
+          localStorage.setItem('recentPredictions', JSON.stringify(recentPredictions));
+          updateResultsTable();
+        }
+        function updateResultsTable() {
+          const tbody = document.getElementById('results-table-body');
+          const placeholder = document.getElementById('results-placeholder');
+          tbody.innerHTML = '';
+          if (recentPredictions.length === 0) {
+            placeholder.classList.remove('hidden');
+          } else {
+            placeholder.classList.add('hidden');
+          }
+          recentPredictions.forEach(pred => {
+            tbody.innerHTML += `<tr><td class="px-4 py-2 text-center">${pred.filename}</td><td class="px-4 py-2 text-center">${pred.className}</td><td class="px-4 py-2 text-center">${pred.confidence}</td><td class="px-4 py-2 text-center">${pred.timestamp}</td></tr>`;
+          });
+          // Most recent
+          if (recentPredictions.length > 0) {
+            document.getElementById('recent-class').textContent = recentPredictions[0].className;
+            document.getElementById('recent-confidence').textContent = recentPredictions[0].confidence;
+          } else {
+            document.getElementById('recent-class').textContent = '';
+            document.getElementById('recent-confidence').textContent = '';
+          }
+        }
+      });
+    </script>
+</body>
+</html> 
